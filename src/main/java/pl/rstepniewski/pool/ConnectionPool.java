@@ -27,12 +27,13 @@ public class ConnectionPool {
         System.out.println("CREATING CONNECTION POOL");
         for (int i = 0; i < PropertiesUtil.getNumber(POOL_INIT_SIZE); i++) {
             System.out.println("threadAvailable.availablePermits() " + threadAvailable.availablePermits());
+            threadAvailable.acquire(1);
             addConnectionToPool();
         }
         System.out.println("CONNECTION POOL HAS BEEN CREATED");
     }
 
-    private ConnectionThread addConnectionToPool() throws SQLException, InterruptedException {
+    private ConnectionThread addConnectionToPool() throws SQLException {
         connectionThread = new ConnectionThread();
         connectionPool.add(connectionThread);
         return connectionThread;
@@ -43,11 +44,19 @@ public class ConnectionPool {
     }
 
     protected List<ConnectionThread> getFreeConnectionList() {
-        return connectionPool.stream().filter(thread -> !thread.isBusy()).toList();
+        return connectionPool.stream()
+                .filter(thread -> !thread.isBusy())
+                .toList();
     }
 
     protected long getFreeConnectionsAmount() {
-        return connectionPool.stream().filter(thread -> !thread.isBusy()).count();
+        return connectionPool.stream()
+                .filter(thread -> !thread.isBusy())
+                .count();
+    }
+
+    protected long getFreeThreadAvailable() {
+        return threadAvailable.availablePermits();
     }
 
     public void returnConnection(ConnectionThread connectionThread) {
@@ -61,12 +70,12 @@ public class ConnectionPool {
         try {
             Optional<ConnectionThread> optionalConnectionThread = getFreeConnectionThread();
             if(optionalConnectionThread.isPresent() ){
-                System.out.println("Mam wolne na liście");
+                System.out.println("Mam wątki wolne na liście");
                 freeConnectionThread = optionalConnectionThread.get();
                 freeConnectionThread.setBusyTrue();
             }else{
-                System.out.println("Dorabiam wolne");
-                if(threadAvailable.tryAcquire()) {
+                System.out.println("Dorabiam wolne wątki");
+                if( threadAvailable.tryAcquire() ) {
                     System.out.println("threadAvailable.availablePermits() " + threadAvailable.availablePermits());
                     freeConnectionThread = addConnectionToPool();
                     threadAvailable.acquire(1);
@@ -80,6 +89,25 @@ public class ConnectionPool {
         }
         return freeConnectionThread;
     }
+
+    protected void removeExcessiveConnections() throws SQLException, InterruptedException {
+        while(true){
+            while (getFreeConnectionsAmount() > PropertiesUtil.getNumber(POOL_INIT_SIZE) ) {
+                connectionPoolAvailable.acquire();
+                try {
+                    System.out.println("DELETING FREE SINGLE CONNECTION, STILL IN POOL: " + getFreeConnectionsAmount());
+                    ConnectionThread connectionThread = getFreeConnectionList().get(0);
+                    connectionThread.closeConnection();
+                    connectionPool.remove(connectionThread);
+                    threadAvailable.release(1);
+                } finally {
+                    connectionPoolAvailable.release();
+                }
+            }
+            Thread.sleep(10);
+        }
+    }
+
 
     public void removeAllConnections() {
         System.out.println("Removing all connections!");

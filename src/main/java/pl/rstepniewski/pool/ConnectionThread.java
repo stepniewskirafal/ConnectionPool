@@ -12,7 +12,6 @@ public final class ConnectionThread {
     private static final String PASSWORD_KEY = "db.password";
     private Connection connection;
     private boolean isBusy;
-    private final Object lock = new Object();
 
     public ConnectionThread() throws SQLException {
         this.connection = createConnection();
@@ -28,26 +27,18 @@ public final class ConnectionThread {
     }
 
     public boolean isBusy() {
-        synchronized (lock) {
-            return isBusy;
-        }
+       return isBusy;
     }
 
     public void setBusyTrue() {
-        synchronized (lock) {
-            isBusy = true;
-        }
+      isBusy = true;
     }
 
     public void setBusyFalse() {
-        synchronized (lock) {
-            isBusy = false;
-        }
+       isBusy = false;
     }
 
     public void closeConnection() throws SQLException {
-        synchronized (lock) {
-            this.connection.close();
-        }
+       this.connection.close();
     }
 }
