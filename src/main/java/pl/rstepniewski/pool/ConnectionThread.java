@@ -1,12 +1,5 @@
 package pl.rstepniewski.pool;
 
-/**
- * Created by rafal on 22.05.2023
- *
- * @author : rafal
- * @date : 22.05.2023
- * @project : ConnectionPool
- */
 import pl.rstepniewski.pool.util.PropertiesUtil;
 
 import java.sql.Connection;
@@ -17,33 +10,44 @@ public final class ConnectionThread {
     private static final String URL_KEY = "db.url";
     private static final String USERNAME_KEY = "db.username";
     private static final String PASSWORD_KEY = "db.password";
-    private final Connection connection;
-    private boolean isBussy;
+    private Connection connection;
+    private boolean isBusy;
+    private final Object lock = new Object();
 
-
-    public ConnectionThread(Connection connection, boolean isBussy) {
-        this.connection = connection;
-        this.isBussy = isBussy;
+    public ConnectionThread() throws SQLException {
+        this.connection = createConnection();
+        this.isBusy = false;
     }
 
-    public Connection getConnection() throws SQLException {
-        var user = PropertiesUtil.get(USERNAME_KEY);
-        var password = PropertiesUtil.get(PASSWORD_KEY);
-        var url = PropertiesUtil.get(URL_KEY);
+    public Connection createConnection() throws SQLException {
+        var user = PropertiesUtil.getString(USERNAME_KEY);
+        var password = PropertiesUtil.getString(PASSWORD_KEY);
+        var url = PropertiesUtil.getString(URL_KEY);
 
         return DriverManager.getConnection(url, user, password);
     }
 
-    public boolean isBussy() {
-        return isBussy;
+    public boolean isBusy() {
+        synchronized (lock) {
+            return isBusy;
+        }
     }
 
-    public void setFree(boolean free) {
-        isBussy = free;
+    public void setBusyTrue() {
+        synchronized (lock) {
+            isBusy = true;
+        }
+    }
+
+    public void setBusyFalse() {
+        synchronized (lock) {
+            isBusy = false;
+        }
     }
 
     public void closeConnection() throws SQLException {
-        this.connection.close();
+        synchronized (lock) {
+            this.connection.close();
+        }
     }
-
 }

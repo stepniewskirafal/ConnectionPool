@@ -23,8 +23,17 @@ public final class PropertiesUtil {
         }
     }
 
-    public static String get(String key){
+    public static String getString(String key){
         return PROPERTIES.getProperty(key);
+    }
+
+    public static int getNumber(String key){
+        String value = PROPERTIES.getProperty(key);
+        try {
+            return Integer.parseInt(value);
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("Invalid number format for key: " + key, e);
+        }
     }
 
 
