@@ -13,9 +13,8 @@ import java.util.concurrent.Semaphore;
 public class ConnectionPool {
     private static final String POOL_INIT_SIZE = "pool.init.size";
     private static final String POOL_MAX_SIZE = "pool.max.size";
-    private final List<ConnectionThread> connectionPool = new ArrayList<>();
+    private final List<DBConnection> connectionPool = new ArrayList<>();
     private static final Object lock = new Object();
-    private final Semaphore dupa1 = new Semaphore(1);
     private final Semaphore getList = new Semaphore(1);
     private final Semaphore getSizeList = new Semaphore(1);
     private final Semaphore getSizeList2 = new Semaphore(1);
@@ -51,24 +50,22 @@ public class ConnectionPool {
         timer.schedule(task, 0, 1000);
     }
 
-    private ConnectionThread addConnectionToPool() throws SQLException, InterruptedException {
-        ConnectionThread connectionThread = null;
-        dupa1.acquire();
-        connectionThread = new ConnectionThread();
+    private DBConnection addConnectionToPool() throws SQLException, InterruptedException {
+        DBConnection connectionThread = null;
+        connectionThread = new DBConnection();
         connectionPool.add(connectionThread);
-        dupa1.release();
         return connectionThread;
     }
 
-    private Optional<ConnectionThread> getFreeConnectionThread() throws InterruptedException {
+    private Optional<DBConnection> getFreeConnectionThread() throws InterruptedException {
         return getFreeConnectionList()
                 .stream()
                 .findFirst();
     }
 
-    protected synchronized List<ConnectionThread> getFreeConnectionList() throws InterruptedException {
+    protected synchronized List<DBConnection> getFreeConnectionList() throws InterruptedException {
         getList.acquire(1);
-        List<ConnectionThread> list = connectionPool.stream()
+        List<DBConnection> list = connectionPool.stream()
                 .filter(thread -> !thread.isBusy())
                 .toList();
         getList.release(1);
@@ -76,16 +73,16 @@ public class ConnectionPool {
         return list;
     }
 
-    public synchronized void returnConnection(ConnectionThread connectionThread) {
+    public synchronized void returnConnection(DBConnection connectionThread) {
         connectionThread.setBusyFalse();
     }
 
-    public ConnectionThread getFreeConnection() throws SQLException, InterruptedException {
-        ConnectionThread freeConnectionThread = null;
+    public DBConnection getFreeConnection() throws SQLException, InterruptedException {
+        DBConnection freeConnectionThread = null;
         synchronized (lock) {
 /*        connectionPoolAvailable.acquire();
             try {*/
-            Optional<ConnectionThread> optionalConnectionThread = getFreeConnectionThread();
+            Optional<DBConnection> optionalConnectionThread = getFreeConnectionThread();
             if (optionalConnectionThread.isPresent()) {
                 System.out.println("Mam wolne wątki na liście");
                 freeConnectionThread = optionalConnectionThread.get();
@@ -122,7 +119,7 @@ public class ConnectionPool {
         getSizeList2.acquire(1);
         while (getPoolSize() > initSize) {
             if(getFreeConnectionList().size()==0) return;
-            ConnectionThread connectionThread = getFreeConnectionList().get(0);
+            DBConnection connectionThread = getFreeConnectionList().get(0);
             connectionThread.closeConnection();
             connectionPool.remove(connectionThread);
         }
@@ -133,7 +130,7 @@ public class ConnectionPool {
         System.out.println("Removing all connections!");
         getList2.acquire();
         if(connectionPool.size()==0)return;
-        for (ConnectionThread connectionThread : connectionPool) {
+        for (DBConnection connectionThread : connectionPool) {
             connectionThread.closeConnection();
         }
         getList2.release();
