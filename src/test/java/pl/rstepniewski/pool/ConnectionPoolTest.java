@@ -1,7 +1,6 @@
 package pl.rstepniewski.pool;
 
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -27,11 +26,10 @@ class ConnectionPoolTest {
         connectionPool.removeAllConnections();
     }
 
-
     @Test
     void connectionStressTest() throws InterruptedException, SQLException {
         ExecutorService executor = Executors.newFixedThreadPool(100);
-        int expectedRows= 100;
+        int expectedRows= 1_000;
         for (int i = 0; i < expectedRows; i++) {
             executor.submit(() -> {
                 try {
