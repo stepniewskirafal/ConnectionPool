@@ -26,15 +26,15 @@ public final class ConnectionThread {
         return DriverManager.getConnection(url, user, password);
     }
 
-    public boolean isBusy() {
+    public synchronized boolean isBusy() {
        return isBusy;
     }
 
-    public void setBusyTrue() {
+    public synchronized void setBusyTrue() {
       isBusy = true;
     }
 
-    public void setBusyFalse() {
+    public synchronized void setBusyFalse() {
        isBusy = false;
     }
 
