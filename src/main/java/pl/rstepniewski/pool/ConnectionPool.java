@@ -36,6 +36,8 @@ public class ConnectionPool {
                     removeExcessiveConnections();
                 } catch (SQLException e) {
                     e.printStackTrace();
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
                 }
             }
         };
@@ -71,7 +73,6 @@ public class ConnectionPool {
             if (connectionPool.stream().anyMatch(DBConnection::isFree)) {
                 singleConnection = connectionPool.stream().filter(DBConnection::isFree).findFirst().get();
                 takeConnection(singleConnection);
-                System.out.println("FREE CONNECTIONS LEFT: " + getFreeConnectionsAmount());
             } else {
                 if (connectionPool.size() < MAX_POOL_SIZE) {
                     System.out.println("ADDING NEW CONNECTIONS");
@@ -87,14 +88,14 @@ public class ConnectionPool {
         return singleConnection;
     }
 
-    private void removeExcessiveConnections() throws SQLException {
-        System.out.println("-------------------------------------------------REMOVING PROCEDURE-----------------------------------------------------");
-        System.out.println("FREE CONNECTIONS IN POOL: " + getFreeConnectionsAmount());
+    private void removeExcessiveConnections() throws SQLException, InterruptedException {
+        System.out.println("removeExcessiveConnections PROCEDURE");
         while (getFreeConnectionsAmount() > INITIAL_POOL_SIZE) {
-            System.out.println("DELETING FREE SINGLE CONNECTION, STILL IN POOL: " + getFreeConnectionsAmount());
+            poolSemaphore.acquire();
             singleConnection = getFreeConnectionList().get(0);
             singleConnection.closeConnection();
             connectionPool.remove(singleConnection);
+            poolSemaphore.release();
         }
     }
 
