@@ -1,112 +1,79 @@
 package pl.rstepniewski.pool;
 
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Timer;
-import java.util.TimerTask;
+import java.util.*;
 import java.util.concurrent.Semaphore;
 
 public class ConnectionPool {
-
     private static final int INITIAL_POOL_SIZE = 10;
     private static final int MAX_POOL_SIZE = 100;
-    private final List<DBConnection> connectionPool = new ArrayList<>(INITIAL_POOL_SIZE);
-    private final Semaphore poolSemaphore = new Semaphore(1);
-    private int counter = 0;
+    private final List<DBConnection> connectionPool = new LinkedList<>();
+    private final Semaphore updateSemaphore = new Semaphore(1);
+    private final Semaphore createSemaphore = new Semaphore(1);
+    private final Semaphore dBConnectionSemaphore = new Semaphore(1);
+    private DBConnection dBConnection;
 
-    private Timer timer;
+    public ConnectionPool() throws SQLException, InterruptedException {
+        initializePool();
+    }
 
-    private DBConnection singleConnection;
-
-    public void createInitialPool() throws SQLException {
+    public void initializePool() throws SQLException, InterruptedException {
         for (int i = 0; i < INITIAL_POOL_SIZE; i++) {
             System.out.println("CREATING POOL");
             addConnectionToPool();
         }
-        runSchedule();
     }
 
-    private void runSchedule() {
-        timer = new Timer();
-        TimerTask task = new TimerTask() {
-            @Override
-            public void run() {
-                try {
-                    removeExcessiveConnections();
-                } catch (SQLException e) {
-                    e.printStackTrace();
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
-            }
-        };
-        // Uruchomienie zadania co 1 sekundę (1000 milisekund)
-        timer.schedule(task, 0, 500);
+    private DBConnection addConnectionToPool() throws SQLException, InterruptedException {
+        dBConnection = new DBConnection();
+        //createSemaphore.acquire(1);
+        connectionPool.add(dBConnection);
+        //createSemaphore.release(1);
+        return dBConnection;
     }
 
-    private DBConnection addConnectionToPool() throws SQLException {
-        singleConnection = new DBConnection();
-        connectionPool.add(singleConnection);
-        return singleConnection;
+    private void acquireConnection(DBConnection dBConnection) throws InterruptedException {
+        //dBConnectionSemaphore.acquire(1);
+        dBConnection.setFree(false);
+        //dBConnectionSemaphore.release(1);
     }
 
-    private List<DBConnection> getFreeConnectionList() {
-        return connectionPool.stream().filter(DBConnection::isFree).toList();
-    }
-
-    private long getFreeConnectionsAmount() {
-        return connectionPool.stream().filter(DBConnection::isFree).count();
-    }
-
-    private void takeConnection(DBConnection singleConnection) {
-        singleConnection.setFree(false);
-    }
-
-    public void returnConnection(DBConnection singleConnection) {
-        singleConnection.setFree(true);
+    public void releaseConnection(DBConnection dBConnection) throws InterruptedException {
+        //dBConnectionSemaphore.acquire(1);
+        dBConnection.setFree(true);
+        //dBConnectionSemaphore.release(1);
     }
 
     public DBConnection getFreeConnection() throws SQLException, InterruptedException {
-        poolSemaphore.acquire();
+        updateSemaphore.acquire();
         try {
             if (connectionPool.stream().anyMatch(DBConnection::isFree)) {
-                singleConnection = connectionPool.stream().filter(DBConnection::isFree).findFirst().get();
-                takeConnection(singleConnection);
+                dBConnection = connectionPool.stream().filter(DBConnection::isFree).findFirst().get();
+                acquireConnection(dBConnection);
             } else {
                 if (connectionPool.size() < MAX_POOL_SIZE) {
                     System.out.println("ADDING NEW CONNECTIONS");
-                    singleConnection = addConnectionToPool();
-                    takeConnection(singleConnection);
+                    dBConnection = addConnectionToPool();
+                    acquireConnection(dBConnection);
                 } else {
                     System.out.println("NO FREE CONNECTIONS AVAILABLE, TRY AGAIN LATER!");
+                    while (connectionPool.size() > INITIAL_POOL_SIZE) {
+                        Optional<DBConnection> dBConnection = connectionPool.stream().filter(DBConnection::isFree).findFirst();
+                        if(dBConnection.isPresent()) {
+                            connectionPool.remove(dBConnection.get());
+                            dBConnection.get().closeConnection();
+                        }
+                    }
                 }
             }
         } finally {
-            poolSemaphore.release();
+            updateSemaphore.release();
         }
-        return singleConnection;
+        return dBConnection;
     }
 
-    private void removeExcessiveConnections() throws SQLException, InterruptedException {
-        System.out.println("removeExcessiveConnections PROCEDURE");
-        while (getFreeConnectionsAmount() > INITIAL_POOL_SIZE) {
-            poolSemaphore.acquire();
-            singleConnection = getFreeConnectionList().get(0);
-            singleConnection.closeConnection();
-            connectionPool.remove(singleConnection);
-            poolSemaphore.release();
-        }
-    }
-
-    // Only for cleaning after test
     public void removeAllConnections() {
         System.out.println("Removing all connections!");
-        while (!connectionPool.isEmpty()) {
-            connectionPool.remove(0);
-        }
+        connectionPool.clear();
     }
-
-
-
 }

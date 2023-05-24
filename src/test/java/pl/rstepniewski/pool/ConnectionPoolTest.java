@@ -12,36 +12,48 @@ import java.util.concurrent.Executors;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class ConnectionPoolTest {
-    ConnectionPool connectionPool = new ConnectionPool();
+    ConnectionPool connectionPool;
+
+    ConnectionPoolTest() throws SQLException, InterruptedException {
+        connectionPool = new ConnectionPool();
+    }
 
     @BeforeEach
     void createPool() throws SQLException, InterruptedException {
         ConnectionPool connectionPool = new ConnectionPool();
-        connectionPool.createInitialPool();
+        connectionPool.initializePool();
     }
 
     @AfterEach
     void removeAll() throws SQLException, InterruptedException {
-        connectionPool.getFreeConnection().createConnection().createStatement().executeUpdate("delete from connection_pool_test where 1 =1");
+        connectionPool.getFreeConnection()
+                .getConnection()
+                .createStatement()
+                .executeUpdate("TRUNCATE connection_pool_test");
         connectionPool.removeAllConnections();
     }
 
     @Test
     void connectionStressTest() throws InterruptedException, SQLException {
-        ExecutorService executor = Executors.newFixedThreadPool(100);
-        int expectedRows= 1_000;
+        ExecutorService executor = Executors.newFixedThreadPool(10_000);
+        int expectedRows= 10_000;
         for (int i = 0; i < expectedRows; i++) {
             executor.submit(() -> {
                 try {
                     DBConnection freeConnection = connectionPool.getFreeConnection();
-                    freeConnection.createConnection().createStatement().executeUpdate("INSERT INTO connection_pool_test VALUES ('test', 'test')");
-                    connectionPool.returnConnection(freeConnection);
+                    freeConnection.getConnection().
+                            createStatement()
+                            .executeUpdate("INSERT INTO connection_pool_test VALUES ('test', 'test')");
+                    connectionPool.releaseConnection(freeConnection);
                 } catch (SQLException | InterruptedException e) {
                     e.printStackTrace();
                 }
             });
         }
-        ResultSet resultSet = connectionPool.getFreeConnection().createConnection().createStatement().executeQuery("select count(1) from connection_pool_test");
+        ResultSet resultSet = connectionPool.getFreeConnection()
+                .getConnection()
+                .createStatement()
+                .executeQuery("select count(1) from connection_pool_test");
         resultSet.next();
         int counter = resultSet.getInt(1);
         assertEquals(expectedRows, counter);
