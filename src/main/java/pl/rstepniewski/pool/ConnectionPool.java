@@ -18,8 +18,8 @@ public class ConnectionPool {
     }
 
     public void initializePool() throws SQLException, InterruptedException {
+        System.out.println("CREATING POOL");
         for (int i = 0; i < INITIAL_POOL_SIZE; i++) {
-            System.out.println("CREATING POOL");
             addConnectionToPool();
         }
     }
