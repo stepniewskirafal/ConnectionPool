@@ -12,21 +12,18 @@ import java.util.concurrent.Executors;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class ConnectionPoolTest {
-    ConnectionPool connectionPool;
-
-    ConnectionPoolTest() throws SQLException, InterruptedException {
-        connectionPool = new ConnectionPool();
-    }
+    private ConnectionPool connectionPool;
 
     @BeforeEach
     void createPool() throws SQLException, InterruptedException {
-        ConnectionPool connectionPool = new ConnectionPool();
+        connectionPool = new ConnectionPool();
         connectionPool.initializePool();
     }
 
     @AfterEach
     void removeAll() throws SQLException, InterruptedException {
-        connectionPool.getFreeConnection()
+        connectionPool
+                .getFreeConnection()
                 .getConnection()
                 .createStatement()
                 .executeUpdate("TRUNCATE connection_pool_test");
@@ -41,8 +38,9 @@ class ConnectionPoolTest {
             executor.submit(() -> {
                 try {
                     DBConnection freeConnection = connectionPool.getFreeConnection();
-                    freeConnection.getConnection().
-                            createStatement()
+                    freeConnection
+                            .getConnection()
+                            .createStatement()
                             .executeUpdate("INSERT INTO connection_pool_test VALUES ('test', 'test')");
                     connectionPool.releaseConnection(freeConnection);
                 } catch (SQLException | InterruptedException e) {
