@@ -17,7 +17,6 @@ class ConnectionPoolTest {
     @BeforeEach
     void createPool() throws SQLException, InterruptedException {
         connectionPool = new ConnectionPool();
-        connectionPool.initializePool();
     }
 
     @AfterEach
