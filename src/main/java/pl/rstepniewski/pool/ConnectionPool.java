@@ -9,26 +9,20 @@ public class ConnectionPool {
     private static final int MAX_POOL_SIZE = 100;
     private final List<DBConnection> connectionPool = new LinkedList<>();
     private final Semaphore updateSemaphore = new Semaphore(1);
-    private final Semaphore createSemaphore = new Semaphore(1);
     private final Semaphore dBConnectionSemaphore = new Semaphore(1);
     private DBConnection dBConnection;
 
-    public ConnectionPool() throws SQLException, InterruptedException {
-        initializePool();
-    }
-
-    public void initializePool() throws SQLException, InterruptedException {
+    public void initializePool() throws SQLException {
+        System.out.println("POOL INITIALIZATION");
         for (int i = 0; i < INITIAL_POOL_SIZE; i++) {
-            System.out.println("CREATING POOL");
             addConnectionToPool();
         }
+        System.out.println("POOL CREATED");
     }
 
-    private DBConnection addConnectionToPool() throws SQLException, InterruptedException {
+    private DBConnection addConnectionToPool() throws SQLException {
         dBConnection = new DBConnection();
-        //createSemaphore.acquire(1);
         connectionPool.add(dBConnection);
-        //createSemaphore.release(1);
         return dBConnection;
     }
 
@@ -48,7 +42,11 @@ public class ConnectionPool {
         updateSemaphore.acquire();
         try {
             if (connectionPool.stream().anyMatch(DBConnection::isFree)) {
-                dBConnection = connectionPool.stream().filter(DBConnection::isFree).findFirst().get();
+                dBConnection = connectionPool
+                        .stream()
+                        .filter(DBConnection::isFree)
+                        .findFirst()
+                        .get();
                 acquireConnection(dBConnection);
             } else {
                 if (connectionPool.size() < MAX_POOL_SIZE) {
@@ -58,7 +56,10 @@ public class ConnectionPool {
                 } else {
                     System.out.println("NO FREE CONNECTIONS AVAILABLE, TRY AGAIN LATER!");
                     while (connectionPool.size() > INITIAL_POOL_SIZE) {
-                        Optional<DBConnection> dBConnection = connectionPool.stream().filter(DBConnection::isFree).findFirst();
+                        Optional<DBConnection> dBConnection = connectionPool
+                                .stream()
+                                .filter(DBConnection::isFree)
+                                .findFirst();
                         if(dBConnection.isPresent()) {
                             connectionPool.remove(dBConnection.get());
                             dBConnection.get().closeConnection();

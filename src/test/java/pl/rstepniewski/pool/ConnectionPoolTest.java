@@ -14,10 +14,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class ConnectionPoolTest {
     ConnectionPool connectionPool;
 
-    ConnectionPoolTest() throws SQLException, InterruptedException {
-        connectionPool = new ConnectionPool();
-    }
-
     @BeforeEach
     void createPool() throws SQLException, InterruptedException {
         ConnectionPool connectionPool = new ConnectionPool();
