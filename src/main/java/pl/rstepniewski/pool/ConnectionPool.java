@@ -5,12 +5,15 @@ import pl.rstepniewski.pool.util.PropertiesUtil;
 import java.sql.SQLException;
 import java.util.*;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class ConnectionPool {
     private static final String POOL_INIT_SIZE = "pool.init.size";
     private static final String POOL_MAX_SIZE = "pool.max.size";
     private final List<DBConnection> connectionPool = new LinkedList<>();
     private final Semaphore updateSemaphore = new Semaphore(1);
+
+    ReentrantLock myLonck = new ReentrantLock();
     private DBConnection dBConnection;
 
     public ConnectionPool() throws SQLException {
@@ -40,7 +43,8 @@ public class ConnectionPool {
     }
 
     public DBConnection getFreeConnection() throws SQLException, InterruptedException {
-        updateSemaphore.acquire();
+        //updateSemaphore.acquire();
+        myLonck.lock();
         try {
             if (connectionPool.stream().anyMatch(DBConnection::isFree)) {
                 dBConnection = connectionPool
@@ -67,9 +71,11 @@ public class ConnectionPool {
                 }
             }
         } finally {
-            updateSemaphore.release();
+            dBConnection.setFree(false);
+            //updateSemaphore.release();
+            myLonck.unlock();
         }
-        dBConnection.setFree(false);
+
         return dBConnection;
     }
 

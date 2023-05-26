@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -33,6 +34,7 @@ class ConnectionPoolTest {
     void connectionStressTest() throws InterruptedException, SQLException {
         ExecutorService executor = Executors.newFixedThreadPool(10_000);
         int expectedRows= 10_000;
+        CountDownLatch latch = new CountDownLatch(expectedRows);
         for (int i = 0; i < expectedRows; i++) {
             executor.submit(() -> {
                 try {
@@ -44,9 +46,12 @@ class ConnectionPoolTest {
                     connectionPool.releaseConnection(freeConnection);
                 } catch (SQLException | InterruptedException e) {
                     e.printStackTrace();
+                } finally {
+                    latch.countDown();
                 }
             });
         }
+        latch.await();
         ResultSet resultSet = connectionPool.getFreeConnection()
                 .getConnection()
                 .createStatement()

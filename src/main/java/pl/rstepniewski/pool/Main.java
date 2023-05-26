@@ -15,8 +15,8 @@ public class Main {
     public static void main(String[] args) throws SQLException, InterruptedException {
         ConnectionPool connectionPool = new ConnectionPool();
 
-        ExecutorService executor = Executors.newFixedThreadPool(500);
-        int expectedRows= 500;
+        ExecutorService executor = Executors.newFixedThreadPool(15);
+        int expectedRows= 15;
         for (int i = 0; i < expectedRows; i++) {
             executor.submit(() -> {
                 try {
