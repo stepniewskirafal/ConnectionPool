@@ -1,27 +1,28 @@
 package pl.rstepniewski.pool;
 
+import pl.rstepniewski.pool.util.PropertiesUtil;
+
 import java.sql.SQLException;
 import java.util.*;
 import java.util.concurrent.Semaphore;
 
 public class ConnectionPool {
-    private static final int INITIAL_POOL_SIZE = 10;
-    private static final int MAX_POOL_SIZE = 100;
+    private static final String POOL_INIT_SIZE = "pool.init.size";
+    private static final String POOL_MAX_SIZE = "pool.max.size";
     private final List<DBConnection> connectionPool = new LinkedList<>();
     private final Semaphore updateSemaphore = new Semaphore(1);
-    private final Semaphore dBConnectionSemaphore = new Semaphore(1);
     private DBConnection dBConnection;
 
-    public ConnectionPool() throws SQLException, InterruptedException {
+    public ConnectionPool() throws SQLException {
         initializePool();
     }
 
     public void initializePool() throws SQLException {
         System.out.println("POOL INITIALIZATION");
-        for (int i = 0; i < INITIAL_POOL_SIZE; i++) {
+        for (int i = 0; i < PropertiesUtil.getNumber(POOL_INIT_SIZE) ; i++) {
             addConnectionToPool();
         }
-        System.out.println("POOL CREATED");
+        System.out.println("POOL CREATED rozmiar:" + connectionPool.size());
     }
 
     private DBConnection addConnectionToPool() throws SQLException {
@@ -30,16 +31,12 @@ public class ConnectionPool {
         return dBConnection;
     }
 
-    private void acquireConnection(DBConnection dBConnection) throws InterruptedException {
-        //dBConnectionSemaphore.acquire(1);
+    private void acquireConnection(DBConnection dBConnection) {
         dBConnection.setFree(false);
-        //dBConnectionSemaphore.release(1);
     }
 
-    public void releaseConnection(DBConnection dBConnection) throws InterruptedException {
-        //dBConnectionSemaphore.acquire(1);
+    public void releaseConnection(DBConnection dBConnection)  {
         dBConnection.setFree(true);
-        //dBConnectionSemaphore.release(1);
     }
 
     public DBConnection getFreeConnection() throws SQLException, InterruptedException {
@@ -51,22 +48,20 @@ public class ConnectionPool {
                         .filter(DBConnection::isFree)
                         .findFirst()
                         .get();
-                acquireConnection(dBConnection);
             } else {
-                if (connectionPool.size() < MAX_POOL_SIZE) {
+                if (connectionPool.size() < PropertiesUtil.getNumber(POOL_MAX_SIZE)) {
                     System.out.println("ADDING NEW CONNECTIONS");
                     dBConnection = addConnectionToPool();
-                    acquireConnection(dBConnection);
                 } else {
                     System.out.println("NO FREE CONNECTIONS AVAILABLE, TRY AGAIN LATER!");
-                    while (connectionPool.size() > INITIAL_POOL_SIZE) {
+                    while (connectionPool.size() > PropertiesUtil.getNumber(POOL_INIT_SIZE) ) {
                         Optional<DBConnection> dBConnection = connectionPool
                                 .stream()
                                 .filter(DBConnection::isFree)
                                 .findFirst();
                         if(dBConnection.isPresent()) {
                             connectionPool.remove(dBConnection.get());
-                            dBConnection.get().closeConnection();
+                            dBConnection.get(). closeConnection();
                         }
                     }
                 }
@@ -74,6 +69,7 @@ public class ConnectionPool {
         } finally {
             updateSemaphore.release();
         }
+        dBConnection.setFree(false);
         return dBConnection;
     }
 
