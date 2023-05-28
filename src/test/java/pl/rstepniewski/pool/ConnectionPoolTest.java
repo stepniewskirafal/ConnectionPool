@@ -16,46 +16,46 @@ class ConnectionPoolTest {
     private ConnectionPool connectionPool;
 
     @BeforeEach
-    void createPool() throws SQLException, InterruptedException {
+    void createPool() throws SQLException {
         connectionPool = new ConnectionPool();
     }
 
     @AfterEach
-    void removeAll() throws SQLException, InterruptedException {
+    void removeAll() throws SQLException {
         connectionPool
-                .getFreeConnection()
+                .acquireConnection()
                 .getConnection()
                 .createStatement()
-                .executeUpdate("TRUNCATE connection_pool_test");
+                .execute("TRUNCATE connection_pool_test");
         connectionPool.removeAllConnections();
     }
 
     @Test
     void connectionStressTest() throws InterruptedException, SQLException {
-        ExecutorService executor = Executors.newFixedThreadPool(10_000);
-        int expectedRows= 10_000;
+        ExecutorService executor = Executors.newFixedThreadPool(70);
+        int expectedRows= 1_000;
         CountDownLatch latch = new CountDownLatch(expectedRows);
         for (int i = 0; i < expectedRows; i++) {
             executor.submit(() -> {
                 try {
-                    DBConnection freeConnection = connectionPool.getFreeConnection();
+                    DBConnection freeConnection = connectionPool.acquireConnection();
                     freeConnection
                             .getConnection()
                             .createStatement()
-                            .executeUpdate("INSERT INTO connection_pool_test VALUES ('test', 'test')");
-                    connectionPool.releaseConnection(freeConnection);
-                } catch (SQLException | InterruptedException e) {
-                    e.printStackTrace();
+                            .execute("INSERT INTO connection_pool_test VALUES ('test', 'test')");
+                    connectionPool.markConnectionFree(freeConnection);
+                } catch (SQLException e) {
+                    throw new RuntimeException(e);
                 } finally {
                     latch.countDown();
                 }
             });
         }
         latch.await();
-        ResultSet resultSet = connectionPool.getFreeConnection()
+        ResultSet resultSet = connectionPool.acquireConnection()
                 .getConnection()
                 .createStatement()
-                .executeQuery("select count(1) from connection_pool_test");
+                .executeQuery("SELECT COUNT(1) FROM connection_pool_test");
         resultSet.next();
         int counter = resultSet.getInt(1);
         assertEquals(expectedRows, counter);

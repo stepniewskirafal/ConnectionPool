@@ -11,33 +11,33 @@ public final class DBConnection {
     private static final String USERNAME_KEY = "db.username";
     private static final String PASSWORD_KEY = "db.password";
     private final Connection connection;
-    private boolean isFree;
+    private boolean available;
 
-    public DBConnection() throws SQLException {
+    protected DBConnection() throws SQLException {
         this.connection = createConnection();
-        this.isFree = true;
+        this.available = true;
     }
 
-    public Connection createConnection() throws SQLException {
+    private Connection createConnection() throws SQLException {
         var user = PropertiesUtil.getString(USERNAME_KEY);
         var password = PropertiesUtil.getString(PASSWORD_KEY);
         var url = PropertiesUtil.getString(URL_KEY);
         return DriverManager.getConnection(url, user, password);
     }
 
-    public Connection getConnection() {
+    protected Connection getConnection() {
         return connection;
     }
 
-    public boolean isFree() {
-        return isFree;
+    protected boolean isAvailable() {
+        return available;
     }
 
-    public void setFree(boolean free) {
-        isFree = free;
+    protected void setAvailable(boolean available) {
+        this.available = available;
     }
 
-    public void closeConnection() throws SQLException {
+    protected void closeConnection() throws SQLException {
         this.connection.close();
     }
 }
