@@ -7,9 +7,9 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 
 public final class DBConnection {
-    private static final String URL_KEY = "db.url";
-    private static final String USERNAME_KEY = "db.username";
-    private static final String PASSWORD_KEY = "db.password";
+    private static final String URL_KEY = PropertiesUtil.getString("db.url");
+    private static final String USERNAME_KEY = PropertiesUtil.getString("db.username");
+    private static final String PASSWORD_KEY = PropertiesUtil.getString("db.password");
     private final Connection connection;
     private boolean available;
 
@@ -19,10 +19,7 @@ public final class DBConnection {
     }
 
     private Connection createConnection() throws SQLException {
-        var user = PropertiesUtil.getString(USERNAME_KEY);
-        var password = PropertiesUtil.getString(PASSWORD_KEY);
-        var url = PropertiesUtil.getString(URL_KEY);
-        return DriverManager.getConnection(url, user, password);
+        return DriverManager.getConnection(URL_KEY, USERNAME_KEY, PASSWORD_KEY);
     }
 
     protected Connection getConnection() {
@@ -37,7 +34,11 @@ public final class DBConnection {
         this.available = available;
     }
 
-    protected void closeConnection() throws SQLException {
-        this.connection.close();
+    protected void closeConnection() {
+        try {
+            this.connection.close();
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
 }

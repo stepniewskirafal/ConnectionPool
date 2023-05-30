@@ -5,18 +5,18 @@ import pl.rstepniewski.pool.util.PropertiesUtil;
 import java.sql.SQLException;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Optional;
+import java.util.NoSuchElementException;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class ConnectionPool {
-    private static final String POOL_INIT_SIZE = "pool.init.size";
-    private static final String POOL_MAX_SIZE = "pool.max.size";
+    private static final int POOL_INIT_SIZE = PropertiesUtil.getNumber("pool.init.size");
+    private static final int POOL_MAX_SIZE = PropertiesUtil.getNumber("pool.max.size");
     private final List<DBConnection> connectionPool = new LinkedList<>();
     private final ReentrantLock connectionPoolLock = new ReentrantLock();
     private DBConnection dBConnection;
 
     public ConnectionPool() throws SQLException {
-        for (int i = 0; i < PropertiesUtil.getNumber(POOL_INIT_SIZE) ; i++) {
+        for (int i = 0; i < POOL_INIT_SIZE ; i++) {
             addNewConnectionToPool(createNewConnection());
         }
     }
@@ -43,10 +43,8 @@ public class ConnectionPool {
                     removeRedundantConnections();
                 }
             }
+            markConnectionBussy(dBConnection);
         }finally {
-            if(dBConnection != null){
-                markConnectionBussy(dBConnection);
-            }
             connectionPoolLock.unlock();
         }
         return dBConnection;
@@ -57,24 +55,24 @@ public class ConnectionPool {
                 .stream()
                 .filter(DBConnection::isAvailable)
                 .findFirst()
-                .get();
+                .orElseThrow(() -> new NoSuchElementException("No free connections available"));
     }
 
-    private void removeRedundantConnections() throws SQLException {
+    private void removeRedundantConnections() {
         while (isConnectionPoolSizeGreaterThan(POOL_INIT_SIZE) ) {
-            Optional<DBConnection> dBConnection = connectionPool
-                    .stream()
-                    .filter(DBConnection::isAvailable)
-                    .findFirst();
-            if(dBConnection.isPresent()) {
-                connectionPool.remove(dBConnection.get());
-                dBConnection.get(). closeConnection();
-            }
+            connectionPool
+                .stream()
+                .filter(DBConnection::isAvailable)
+                .findFirst()
+                .ifPresent(dbConnection -> {
+                    connectionPool.remove(dbConnection);
+                    dbConnection.closeConnection();
+                });
         }
     }
 
-    private boolean isConnectionPoolSizeGreaterThan(String size) {
-        return connectionPool.size() < PropertiesUtil.getNumber(size);
+    private boolean isConnectionPoolSizeGreaterThan(int size) {
+        return connectionPool.size() < size;
     }
 
     private boolean isAnyConnectionFree() {

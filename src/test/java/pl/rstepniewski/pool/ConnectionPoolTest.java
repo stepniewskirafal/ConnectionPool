@@ -33,7 +33,7 @@ class ConnectionPoolTest {
     @Test
     void connectionStressTest() throws InterruptedException, SQLException {
         ExecutorService executor = Executors.newFixedThreadPool(70);
-        int expectedRows= 1_000;
+        int expectedRows= 10_000;
         CountDownLatch latch = new CountDownLatch(expectedRows);
         for (int i = 0; i < expectedRows; i++) {
             executor.submit(() -> {
