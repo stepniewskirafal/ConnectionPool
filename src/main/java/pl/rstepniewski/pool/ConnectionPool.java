@@ -58,7 +58,7 @@ public class ConnectionPool {
                     .filter(DBConnection::isAvailable)
                     .findFirst()
                     .orElseThrow(() -> new NoSuchElementException("No free connections available"));
-            dBConnection = (dBConnection.getConnection().isValid(300)) ? dBConnection : null;
+            dBConnection = (dBConnection.getConnection().isValid(1)) ? dBConnection : null;
         }
         return dBConnection;
     }
